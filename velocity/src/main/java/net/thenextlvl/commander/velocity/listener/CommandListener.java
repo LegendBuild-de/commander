@@ -21,6 +21,7 @@ public class CommandListener {
         final var commandRegistry = CommandRegistry.instance();
         final var permissionOverride = PermissionOverride.instance();
         event.getRootNode().getChildren().removeIf(commandNode -> {
+            if (commandNode.getName().contains(":")) return true;
             if (commandRegistry.isHidden(commandNode.getName())) return true;
             final var permission = permissionOverride.permission(commandNode.getName());
             return permission != null && !event.getPlayer().hasPermission(permission);
@@ -32,8 +33,16 @@ public class CommandListener {
         if (!event.getResult().isAllowed()) return;
         final var command = event.getCommand().split(" ", 2)[0];
         if (event.getCommandSource() instanceof ConsoleCommandSource) return;
+        if (command.contains(":") && !event.getCommandSource().getPermissionValue("commander.bypass").equals(Tristate.TRUE)) {
+            sendUnknownCommand(event);
+            return;
+        }
         final var permission = PermissionOverride.instance().permission(command);
         if (permission == null || event.getCommandSource().hasPermission(permission)) return;
+        sendUnknownCommand(event);
+    }
+
+    private void sendUnknownCommand(final CommandExecuteEvent event) {
         event.getCommandSource().sendMessage(Component.translatable("command.unknown.command").appendNewline()
                 .append(Component.text().append(Component.text(event.getCommand()).decorate(TextDecoration.UNDERLINED))
                         .append(Component.translatable("command.context.here").decorate(TextDecoration.ITALIC))
