@@ -25,6 +25,7 @@ public class CommandListener implements Listener {
         final var permissionOverride = PermissionOverride.instance();
         event.getCommandNode().getChildren().removeIf(node -> {
             if (node.getName().contains(":")) return true;
+            if (event.getPlayer().permissionValue("commander.bypass." + node.getName()).equals(TriState.TRUE)) return false;
             if (hiddenCommands.contains(node.getName())) return true;
             final var permission = permissionOverride.permission(node.getName());
             return permission != null && !event.getPlayer().hasPermission(permission);
@@ -33,11 +34,13 @@ public class CommandListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onCommandPreprocess(final PlayerCommandPreprocessEvent event) {
+        if (event.getPlayer().permissionValue("commander.bypass").equals(TriState.TRUE)) return;
         final var noSlash = event.getMessage().substring(1);
         final var command = noSlash.split(" ", 2)[0];
-        if (command.contains(":") && !event.getPlayer().permissionValue("commander.bypass").equals(TriState.TRUE)) {
-            sendUnknownCommand(event.getPlayer(), event.getMessage(), noSlash);
+        final var hiddenCommands = CommandRegistry.instance().hiddenCommands();
+        if ((hiddenCommands.contains(command) || command.contains(":")) && !event.getPlayer().permissionValue("commander.bypass." + command).equals(TriState.TRUE)) {
             event.setCancelled(true);
+            sendUnknownCommand(event.getPlayer(), event.getMessage(), noSlash);
             return;
         }
         final var permission = PermissionOverride.instance().permission(command);

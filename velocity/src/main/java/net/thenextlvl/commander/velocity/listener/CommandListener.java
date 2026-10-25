@@ -21,7 +21,8 @@ public class CommandListener {
         final var commandRegistry = CommandRegistry.instance();
         final var permissionOverride = PermissionOverride.instance();
         event.getRootNode().getChildren().removeIf(commandNode -> {
-            if (commandNode.getName().contains(":")) return true;
+            if (commandNode.getName().contains(":") && !event.getPlayer().getPermissionValue("commander.bypass").equals(Tristate.TRUE)) return true;
+            if (event.getPlayer().getPermissionValue("commander.bypass." + commandNode.getName()).equals(Tristate.TRUE)) return false;
             if (commandRegistry.isHidden(commandNode.getName())) return true;
             final var permission = permissionOverride.permission(commandNode.getName());
             return permission != null && !event.getPlayer().hasPermission(permission);
@@ -31,10 +32,12 @@ public class CommandListener {
     @Subscribe(priority = -1)
     public void onPlayerChat(final CommandExecuteEvent event) {
         if (!event.getResult().isAllowed()) return;
+        if (event.getCommandSource().getPermissionValue("commander.bypass").equals(Tristate.TRUE)) return;
         final var command = event.getCommand().split(" ", 2)[0];
         if (event.getCommandSource() instanceof ConsoleCommandSource) return;
-        if (command.contains(":") && !event.getCommandSource().getPermissionValue("commander.bypass").equals(Tristate.TRUE)) {
-            sendUnknownCommand(event);
+        final var hiddenCommands = CommandRegistry.instance().hiddenCommands();
+        if ((hiddenCommands.contains(command) || command.contains(":")) && !event.getCommandSource().getPermissionValue("commander.bypass." + command).equals(Tristate.TRUE)) {
+            event.setResult(CommandExecuteEvent.CommandResult.denied());
             return;
         }
         final var permission = PermissionOverride.instance().permission(command);
